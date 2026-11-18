@@ -1,0 +1,21 @@
+2026-11-18 09:46:06,644 INFO waitress: Serving on http://0.0.0.0:8080
+2026-11-18 09:46:06,655 INFO pipeline: Распознавание лиц включено
+2026-11-18 09:46:08,315 INFO camera: Камера подключена: usb
+2026-11-18 09:46:09,521 INFO detector: Детектор: YOLO-pose (yolov8n-pose.pt)
+2026-11-18 09:46:19,354 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 09:46:31,131 INFO server: Добавлен сотрудник id=2 (согласие подтверждено)
+2026-11-18 09:46:38,384 INFO pipeline: Опознан сотрудник id=2 (схожесть 0.97)
+2026-11-18 09:47:08,996 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 09:47:34,262 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 09:47:52,242 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 09:49:11,904 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 09:50:55,262 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 09:52:09,401 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 10:41:05,409 INFO waitress: Serving on http://0.0.0.0:8080
+2026-11-18 10:41:05,421 INFO pipeline: Распознавание лиц включено
+2026-11-18 10:41:06,490 INFO camera: Камера подключена: usb
+2026-11-18 10:41:06,733 INFO detector: Детектор: YOLO-pose (yolov8n-pose.pt)
+2026-11-18 10:41:07,459 INFO pipeline: Опознан сотрудник id=2 (схожесть 0.83)
+2026-11-18 10:41:11,878 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 10:41:43,572 INFO waitress: Client disconnected while serving /video.mjpg
+2026-11-18 10:43:36,550 INFO pipeline: Опознан сотрудник id=2 (схожесть 0.70)

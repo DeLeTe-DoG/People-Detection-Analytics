@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office Analytics</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">Office Analytics</div>
+  <nav>
+    <button class="tab active" data-tab="live">Онлайн</button>
+    <button class="tab" data-tab="report">Отчёты</button>
+    <button class="tab" data-tab="zones">Зоны</button>
+    <button class="tab" data-tab="staff">Сотрудники</button>
+    <button class="tab" data-tab="settings">Настройки</button>
+  </nav>
+  <div class="hstat" id="hstat"></div>
+  <a class="btn" href="/panel" target="_blank" title="Полноэкранная панель для дисплея">Экран</a>
+</header>
+
+<main>
+<!-- ОНЛАЙН -->
+<section id="tab-live" class="panel active">
+  <div class="live-grid">
+    <div class="card videocard">
+      <div class="video-wrap">
+        <img id="video" alt="Видео">
+        <canvas id="overlay"></canvas>
+        <div id="novideo" class="novideo">Нет сигнала с камеры</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Сейчас в кадре и отсутствуют</h3>
+      <div id="people" class="people"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ОТЧЁТЫ -->
+<section id="tab-report" class="panel">
+  <div class="toolbar">
+    <label>Дата <input type="date" id="rdate"></label>
+    <label class="chk"><input type="checkbox" id="rworkday" checked> Только рабочее время</label>
+    <button id="rrefresh">Обновить</button>
+    <a id="rcsv" class="btn" href="#">Скачать CSV</a>
+  </div>
+  <div class="card"><h3>Сводка по сотрудникам</h3><div id="rtable"></div></div>
+  <div class="card"><h3>Хронология дня</h3><div id="rtimeline"></div><div id="rlegend" class="legend"></div></div>
+</section>
+
+<!-- ЗОНЫ -->
+<section id="tab-zones" class="panel">
+  <div class="zones-grid">
+    <div class="card">
+      <div class="toolbar">
+        <select id="zkind"></select>
+        <input id="zname" placeholder="Название (напр. Стол 1)">
+        <input id="zowner" placeholder="Сотрудник (для рабочего места)">
+        <button id="zstart">Нарисовать зону</button>
+        <button id="zfinish" disabled>Готово</button>
+        <button id="zcancel" disabled>Отмена</button>
+      </div>
+      <p class="hint">Нажимайте на кадр, расставляя углы зоны (минимум 3 точки), затем «Готово».
+        Туалет и выход — это <b>двери</b>: когда человек пропадает рядом с ними, система знает, куда он ушёл.</p>
+      <div class="video-wrap zedit">
+        <img id="zimg" alt="Кадр">
+        <canvas id="zcanvas"></canvas>
+      </div>
+      <div class="toolbar"><button id="zrefresh">Обновить кадр</button><button id="zsave" class="primary">Сохранить зоны</button></div>
+    </div>
+    <div class="card"><h3>Список зон</h3><div id="zlist"></div></div>
+  </div>
+</section>
+
+<!-- СОТРУДНИКИ -->
+<section id="tab-staff" class="panel">
+  <div class="zones-grid">
+    <div class="card">
+      <h3>Сотрудники и распознавание лиц</h3>
+      <div id="facestatus" class="hint"></div>
+      <div id="stafflist"></div>
+    </div>
+    <div class="card">
+      <h3>Добавить сотрудника</h3>
+      <label>ФИО <input id="e_name" placeholder="Иванов Иван Иванович"></label>
+      <label>Должность <input id="e_pos" placeholder="Кладовщик"></label>
+      <label class="chk"><input type="checkbox" id="e_consent">
+        <span>Есть письменное согласие сотрудника на обработку биометрических данных (изображение лица)</span></label>
+      <button id="e_add" class="primary">Добавить</button>
+      <p class="hint">После добавления нажмите «Снять с камеры» (человек стоит лицом к камере 4–5 секунд,
+        слегка поворачивая голову) или «Загрузить фото» (2–5 чётких фото анфас).
+        <b>Фотографии не сохраняются</b> — в базе остаются только числовые векторы лица.</p>
+    </div>
+  </div>
+  <input type="file" id="e_files" accept="image/*" multiple hidden>
+</section>
+
+<!-- НАСТРОЙКИ -->
+<section id="tab-settings" class="panel">
+  <div class="settings-grid">
+    <div class="card">
+      <h3>Источник видео</h3>
+      <label>Тип источника
+        <select id="s_type">
+          <option value="usb">Веб-камера ПК / USB-камера</option>
+          <option value="url">Wi-Fi / IP-камера (RTSP / HTTP)</option>
+          <option value="file">Видеофайл (для проверки)</option>
+        </select>
+      </label>
+      <div id="g_usb">
+        <label>Камера
+          <select id="s_usb_index"></select>
+        </label>
+        <button id="s_scan" type="button">Найти камеры</button>
+      </div>
+      <div id="g_url" hidden>
+        <label>Адрес потока
+          <input id="s_url" placeholder="rtsp://логин:пароль@192.168.1.50:554/stream1">
+        </label>
+        <p class="hint">Примеры: <code>rtsp://admin:12345@192.168.1.50:554/stream1</code>,
+          <code>http://192.168.1.50:8080/video</code> (приложение IP Webcam).</p>
+      </div>
+      <div id="g_file" hidden>
+        <label>Путь к видеофайлу
+          <input id="s_file" placeholder="C:\video\test.mp4">
+        </label>
+      </div>
+      <button id="s_apply_src" class="primary">Применить и переподключить</button>
+      <div id="s_camstatus" class="hint"></div>
+    </div>
+
+    <div class="card">
+      <h3>Распознавание</h3>
+      <label>Режим
+        <select id="d_backend">
+          <option value="auto">Авто (YOLO, иначе запасной)</option>
+          <option value="yolo">YOLO-pose (точный)</option>
+          <option value="hog">OpenCV-HOG (запасной, без загрузок)</option>
+        </select>
+      </label>
+      <label>Модель YOLO
+        <select id="d_model">
+          <option value="yolov8n-pose.pt">yolov8n-pose — быстрая</option>
+          <option value="yolov8s-pose.pt">yolov8s-pose — точнее</option>
+          <option value="yolov8m-pose.pt">yolov8m-pose — для мощного ПК</option>
+        </select>
+      </label>
+      <label>Устройство <select id="d_device"><option value="cpu">Процессор (CPU)</option><option value="0">Видеокарта NVIDIA (GPU 0)</option></select></label>
+      <label>Кадров анализа в секунду <input type="number" id="d_fps" min="1" max="30"></label>
+      <label>Порог уверенности <input type="number" id="d_conf" min="0.1" max="0.9" step="0.05"></label>
+      <div class="hint" id="s_detstatus"></div>
+    </div>
+
+    <div class="card">
+      <h3>Правила активности</h3>
+      <label>Подтверждение состояния, сек <input type="number" id="a_min" min="1" max="30" step="0.5"></label>
+      <label>«Сидит без активности» после, сек <input type="number" id="a_idle" min="10" max="900"></label>
+      <label>Ждать пропавшего, сек <input type="number" id="a_lost" min="2" max="60"></label>
+      <label>Начало рабочего дня <input type="time" id="w_start"></label>
+      <label>Конец рабочего дня <input type="time" id="w_end"></label>
+      <label>Хранить данные, дней <input type="number" id="r_days" min="7" max="3650"></label>
+    </div>
+
+    <div class="card">
+      <h3>Распознавание лиц</h3>
+      <label class="chk"><input type="checkbox" id="f_enabled"> Включить опознавание сотрудников по лицу</label>
+      <label class="chk"><input type="checkbox" id="f_unknown"> Вести учёт неопознанных людей</label>
+      <label>Порог схожести (0.3–0.7, выше — строже) <input type="number" id="f_thr" min="0.3" max="0.8" step="0.01"></label>
+      <label>Совпадений для опознания <input type="number" id="f_votes" min="1" max="6"></label>
+      <label>Ждать опознания, сек <input type="number" id="f_wait" min="2" max="60"></label>
+      <label>Минимальный размер лица, пикселей <input type="number" id="f_min" min="20" max="200"></label>
+    </div>
+
+    <div class="card">
+      <h3>Производительность</h3>
+      <label>Профиль
+        <select id="p_profile">
+          <option value="light">Лёгкий — слабые ПК и промышленные контроллеры</option>
+          <option value="standard">Стандартный</option>
+          <option value="high">Высокий — мощный ПК или видеокарта</option>
+        </select>
+      </label>
+      <button id="p_apply">Применить профиль</button>
+      <p class="hint">Профиль выставляет частоту анализа, размер кадра и модель.
+        Экран для контроллера: <a href="/panel" target="_blank">/panel</a> (крупная панель без прокрутки).</p>
+    </div>
+
+    <div class="card">
+      <h3>Доступ</h3>
+      <label>Порт веб-интерфейса <input type="number" id="v_port" min="1024" max="65535"></label>
+      <label>Пароль (логин: admin; пусто — без пароля) <input type="password" id="v_pass" autocomplete="new-password"></label>
+      <p class="hint">Порт и пароль применяются после перезапуска приложения. Интерфейс доступен
+        с других компьютеров сети по адресу этого ПК.</p>
+    </div>
+  </div>
+  <div class="toolbar"><button id="s_save" class="primary">Сохранить настройки</button><span id="s_msg" class="hint"></span></div>
+</section>
+</main>
+<div id="toast" class="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

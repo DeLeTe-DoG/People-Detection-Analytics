@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office Analytics — панель</title>
+<style>
+:root{--bg:#0e1218;--card:#171e29;--ink:#eef2f7;--mute:#8a96a8;--line:#273141;--good:#22c55e;--bad:#ef4444;--warn:#f59e0b}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font:clamp(14px,1.6vmin,22px)/1.3 "Segoe UI",system-ui,sans-serif;cursor:default;user-select:none}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100%;padding:1.4vmin;gap:1.2vmin}
+.top,.bottom{display:flex;align-items:center;gap:2vmin;padding:0 .6vmin}
+.top h1{font-size:2.4vmin;font-weight:700}
+.clock{margin-left:auto;font-size:3.2vmin;font-variant-numeric:tabular-nums;font-weight:600}
+.pill{padding:.4vmin 1.4vmin;border-radius:99px;background:var(--card);border:1px solid var(--line);color:var(--mute);font-size:1.7vmin}
+.pill b{color:var(--ink)}
+.dot{display:inline-block;width:1.2vmin;height:1.2vmin;border-radius:50%;background:var(--mute);margin-right:.8vmin}
+.dot.online{background:var(--good)}.dot.error{background:var(--bad)}.dot.connecting{background:var(--warn)}
+.main{display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr);gap:1.2vmin;min-height:0}
+.main.novideo{grid-template-columns:1fr}
+.vid{position:relative;background:#000;border-radius:1.2vmin;overflow:hidden;align-self:start}
+.vid img{width:100%;display:block}
+.vid canvas{position:absolute;inset:0;width:100%;height:100%}
+.vid .off{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--mute);background:#0b0e13;text-align:center;padding:2vmin;aspect-ratio:16/9}
+.vid .off.show{display:flex}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(26vmin,1fr));gap:1.2vmin;align-content:start;overflow:hidden}
+.card{background:var(--card);border:1px solid var(--line);border-left:1.1vmin solid var(--c,var(--mute));border-radius:1.2vmin;padding:1.4vmin 1.6vmin;min-height:15vmin;display:flex;flex-direction:column;gap:.6vmin}
+.card .n{font-size:2.6vmin;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .s{font-size:2.3vmin;color:var(--c,var(--ink));font-weight:600}
+.card .z{color:var(--mute);font-size:1.7vmin}
+.card .t{margin-top:auto;color:var(--mute);font-size:1.7vmin;display:flex;justify-content:space-between;gap:1vmin}
+.card.gone{opacity:.55}
+.empty{grid-column:1/-1;color:var(--mute);font-size:2.4vmin;padding:6vmin 0;text-align:center}
+.sum{font-size:2vmin}.sum b{font-size:3vmin}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>Office Analytics</h1>
+    <span class="pill" id="cam"><span class="dot"></span><b>камера</b></span>
+    <span class="pill sum" id="sum"></span>
+    <div class="clock" id="clock"></div>
+  </div>
+  <div class="main" id="main">
+    <div class="vid" id="vid">
+      <img id="video" alt="">
+      <canvas id="ov"></canvas>
+      <div class="off" id="off">Нет сигнала с камеры</div>
+    </div>
+    <div class="cards" id="cards"></div>
+  </div>
+  <div class="bottom">
+    <span class="pill" id="det"></span>
+    <span class="pill" id="unk"></span>
+    <span class="pill" style="margin-left:auto">Нажмите на видео, чтобы скрыть/показать</span>
+  </div>
+</div>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const C={working:"#22c55e",sitting_idle:"#f59e0b",at_desk_standing:"#84cc16",approach_desk:"#06b6d4",at_shelf:"#3b82f6",
+ approach_shelf:"#8b5cf6",rest:"#ec4899",walking:"#94a3b8",standing:"#94a3b8",sitting:"#a8a29e",
+ away_restroom:"#ef4444",away_exit:"#be123c",away_unknown:"#64748b"};
+const ABS=["away_restroom","away_exit","away_unknown"];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?`${h} ч ${m} м`:m?`${m} м ${s%60} с`:`${s} с`};
+const get=async u=>{const r=await fetch(u);if(!r.ok)throw 0;return r.json()};
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
+let showVideo=!new URLSearchParams(location.search).has("novideo");
+let employees=[],report={},zones=[],labels={};
+
+function setVideo(){
+  $("#main").classList.toggle("novideo",!showVideo);
+  $("#vid").style.display=showVideo?"":"none";
+  const img=$("#video");
+  if(showVideo&&!img.src.includes("video.mjpg"))img.src="/video.mjpg?"+Date.now();
+  if(!showVideo)img.removeAttribute("src");
+}
+$("#vid").onclick=()=>{showVideo=!showVideo;setVideo()};
+
+function overlay(people){
+  const img=$("#video"),cv=$("#ov"),w=img.clientWidth,h=img.clientHeight;
+  if(!w||!showVideo)return;
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}
+  const x=cv.getContext("2d");x.clearRect(0,0,w,h);x.lineWidth=2.5;x.font="bold 14px sans-serif";
+  for(const p of people){
+    const[a,b,c,d]=p.box,col=C[p.state]||"#fff";
+    x.strokeStyle=col;x.strokeRect(a*w,b*h,(c-a)*w,(d-b)*h);
+    const t=(p.employee?"":"? ")+p.name,tw=x.measureText(t).width+10;
+    x.fillStyle=col;x.fillRect(a*w,Math.max(0,b*h-20),tw,20);x.fillStyle="#000";x.fillText(t,a*w+5,Math.max(14,b*h-5));
+  }
+}
+
+function render(st){
+  const live={};
+  st.persons.forEach(p=>{if(p.employee)live[p.person_id]=p});
+  const cards=[];
+  for(const e of employees){
+    const p=live[e.id],r=report[e.id]||{};
+    const state=p?p.state:null,col=p?(C[state]||"#8a96a8"):"#475569";
+    const label=p?p.label:(r.no_data?"Сегодня не появлялся":"Нет в кадре");
+    cards.push(`<div class="card ${p?"":"gone"}" style="--c:${col}"><div class="n">${esc(e.name)}</div>
+      <div class="s">${esc(label)}</div><div class="z">${p&&p.zone?esc(p.zone):esc(e.position||"")}</div>
+      <div class="t"><span>${p?fmt(p.duration):""}</span><span>${r.present_seconds?"работал "+fmt(r.work_seconds)+" · "+Math.round(r.work_percent)+"%":""}</span></div></div>`);
+  }
+  $("#cards").innerHTML=cards.length?cards.join(""):'<div class="empty">Сотрудники ещё не добавлены.<br>Откройте веб-интерфейс → «Сотрудники».</div>';
+  const working=employees.filter(e=>live[e.id]&&live[e.id].state==="working").length;
+  const here=employees.filter(e=>live[e.id]&&!ABS.includes(live[e.id].state)).length;
+  $("#sum").innerHTML=`на месте <b>${here}</b> из ${employees.length} · работают <b>${working}</b>`;
+  const unk=st.persons.filter(p=>!p.employee&&!ABS.includes(p.state)).length;
+  $("#unk").textContent=unk?`Неопознанных в кадре: ${unk}`:"Неопознанных нет";
+}
+
+async function poll(){
+  try{
+    const st=await get("/api/status"),cam=st.camera;
+    const nm={online:"камера онлайн",connecting:"подключение…",error:"нет связи",stopped:"остановлена"};
+    $("#cam").innerHTML=`<span class="dot ${cam.status}"></span><b>${nm[cam.status]||cam.status}</b>`;
+    $("#off").classList.toggle("show",cam.status!=="online");
+    $("#det").textContent=`${st.detector} · ${st.fps} к/с`+(st.faces&&st.faces.enabled?(st.faces.available?" · лица вкл.":" · лица: нет моделей"):"");
+    render(st);overlay(st.people||[]);
+  }catch(e){$("#cam").innerHTML='<span class="dot error"></span><b>нет связи с сервером</b>'}
+}
+async function slow(){
+  try{
+    employees=(await get("/api/employees")).employees;
+    const r=await get(`/api/report?date=${today()}&workday=0`);report={};r.people.forEach(p=>report[p.person_id]=p);
+    zones=(await get("/api/config")).zones||[];
+  }catch(e){}
+}
+setInterval(()=>{$("#clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit"})},500);
+setVideo();slow();poll();setInterval(poll,1000);setInterval(slow,20000);
+// раз в сутки перезагружаем страницу — защита от утечек памяти браузера при работе без выключения
+setTimeout(()=>location.reload(),24*3600*1000);
+</script>
+</body>
+</html>
